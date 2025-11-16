@@ -37,4 +37,4 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build -t flask-k8s-ci-cd-assignment .
+          docker build -t flask-k8s-ci-cd-app .
