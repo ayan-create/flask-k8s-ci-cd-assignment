@@ -1,52 +1,104 @@
 pipeline {
     agent any
 
-    environment {
-        DOCKER_IMAGE = "flask-k8s-ci-cd-app:latest"
-        KUBE_NAMESPACE = "default"
-    }
-
     stages {
-        stage('Build Docker Image') {
+
+        // ---------------------------------------------------
+        // STAGE 1 — Start Minikube Using Docker Desktop Driver
+        // ---------------------------------------------------
+        stage("Start Minikube") {
             steps {
-                echo "Building Docker image inside Minikube's Docker environment..."
+                echo "Starting Minikube using Docker Desktop driver..."
+
                 powershell '''
-                # Configure shell to use Minikube's Docker daemon
-                minikube -p minikube docker-env --shell cmd > minikube-env.bat
-                call minikube-env.bat
-                # Build Docker image with tag
+                Write-Host "Checking Minikube status..."
+                $status = minikube status
+
+                if ($status -notmatch "host: Running") {
+                    Write-Host "Minikube not running. Starting..."
+                    minikube start --driver=docker --memory=4096 --cpus=2
+                } else {
+                    Write-Host "Minikube already running."
+                }
+
+                Write-Host "Verifying Minikube status..."
+                minikube status
+                '''
+            }
+        }
+
+        // ---------------------------------------------------------
+        // STAGE 2 — Build Docker Image in Minikube Docker Daemon
+        // ---------------------------------------------------------
+        stage("Build Docker Image") {
+            steps {
+                echo "Building Docker image inside Minikube’s Docker environment..."
+
+                powershell '''
+                Write-Host "Switching Docker daemon to Minikube..."
+                minikube -p minikube docker-env --shell powershell | Out-String | Invoke-Expression
+
+                Write-Host "Docker Daemon switched. Building image..."
                 docker build -t flask-k8s-ci-cd-assignment:latest .
 
-                # List Docker images to verify
+                Write-Host "Listing Docker images..."
                 docker images
                 '''
             }
         }
 
-        stage('Deploy to Kubernetes') {
+        // -------------------------------------------------------
+        // STAGE 3 — Apply Kubernetes Deployment + Service
+        // -------------------------------------------------------
+        stage("Deploy to Kubernetes") {
             steps {
                 echo "Applying Kubernetes manifests..."
-                sh 'kubectl apply -f kubernetes/'
+
+                powershell '''
+                Write-Host "Applying Deployment..."
+                kubectl apply -f ".\\kubernetes\\deployment.yaml"
+
+                Write-Host "Applying Service..."
+                kubectl apply -f ".\\kubernetes\\service.yaml"
+                '''
             }
         }
 
-        stage('Verify Deployment') {
+        // -----------------------------------------------------------
+        // STAGE 4 — Verify Rollout, Pods, and Service Availability
+        // -----------------------------------------------------------
+        stage("Verify Deployment") {
             steps {
-                echo "Checking rollout status..."
-                sh 'kubectl rollout status deployment/flask-app'
-                echo "Listing Pods and Services..."
-                sh 'kubectl get pods'
-                sh 'kubectl get services'
+                echo "Verifying rollout status and Kubernetes resources..."
+
+                powershell '''
+                Write-Host "Checking rollout status..."
+                kubectl rollout status deployment/flask-deployment
+
+                Write-Host "Fetching pods..."
+                kubectl get pods -o wide
+
+                Write-Host "Fetching services..."
+                kubectl get services -o wide
+
+                Write-Host "Fetching deployments..."
+                kubectl get deployments
+                '''
             }
         }
     }
 
+    // ----------------------------
+    // CLEANUP AFTER EVERY BUILD
+    // ----------------------------
     post {
-        success {
-            echo "Deployment to Kubernetes succeeded!"
-        }
-        failure {
-            echo "Deployment failed. Check logs."
+        always {
+            echo "Stopping Minikube cluster..."
+
+            powershell '''
+            Write-Host "Stopping Minikube..."
+            minikube stop
+            '''
         }
     }
 }
