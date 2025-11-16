@@ -34,7 +34,7 @@ pipeline {
         stage('verify deployment') {
             steps {
                 bat '''
-                // kubectl rollout status deployment/flask-app 
+               
                 kubectl get pods 
                 kubectl get service
                 '''
