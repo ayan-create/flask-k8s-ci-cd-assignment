@@ -2,103 +2,53 @@ pipeline {
     agent any
 
     stages {
-
-        // ---------------------------------------------------
-        // STAGE 1 — Start Minikube Using Docker Desktop Driver
-        // ---------------------------------------------------
-        stage("Start Minikube") {
+        stage("start minikube") {
             steps {
-                echo "Starting Minikube using Docker Desktop driver..."
-
-                powershell '''
-                Write-Host "Checking Minikube status..."
-                $status = minikube status
-
-                if ($status -notmatch "host: Running") {
-                    Write-Host "Minikube not running. Starting..."
-                    minikube start --driver=docker --memory=4096 --cpus=2
-                } else {
-                    Write-Host "Minikube already running."
-                }
-
-                Write-Host "Verifying Minikube status..."
-                minikube status
-                '''
+                echo "starting minikube" 
+                bat 'minikube start --driver=docker'
             }
         }
 
-        // ---------------------------------------------------------
-        // STAGE 2 — Build Docker Image in Minikube Docker Daemon
-        // ---------------------------------------------------------
-        stage("Build Docker Image") {
+        stage('build docker image to minikube') {
             steps {
-                echo "Building Docker image inside Minikube’s Docker environment..."
-
-                powershell '''
-                Write-Host "Switching Docker daemon to Minikube..."
-                minikube -p minikube docker-env --shell powershell | Invoke-Expression
-
-                Write-Host "Docker Daemon switched. Building image..."
+                echo "building docker image insider minikube docker daemon" 
+                bat '''
+                minikube -p minikube docker-env --shell cmd > minikube-env.bat 
+                call minikube-env.bat 
                 docker build -t flask-k8s-ci-cd-assignment:latest .
-
-                Write-Host "Listing Docker images..."
-                docker images
+                docker images 
                 '''
             }
         }
 
-        // -------------------------------------------------------
-        // STAGE 3 — Apply Kubernetes Deployment + Service
-        // -------------------------------------------------------
-        stage("Deploy to Kubernetes") {
+        stage('deploy to kubernetes') {
             steps {
-                echo "Applying Kubernetes manifests..."
-
-                powershell '''
-                Write-Host "Applying Deployment..."
-                kubectl apply -f ".\\kubernetes\\deployment.yaml"
-
-                Write-Host "Applying Service..."
-                kubectl apply -f ".\\kubernetes\\service.yaml"
+                echo "deploying to minikube k8s cluster" 
+                bat '''
+                kubectl apply -f deployment.yaml
+                kubectl apply -f service.yaml
                 '''
             }
         }
 
-        // -----------------------------------------------------------
-        // STAGE 4 — Verify Rollout, Pods, and Service Availability
-        // -----------------------------------------------------------
-        stage("Verify Deployment") {
+        stage('verify deployment') {
             steps {
-                echo "Verifying rollout status and Kubernetes resources..."
-
-                powershell '''
-                Write-Host "Checking rollout status..."
-                kubectl rollout status deployment/flask-deployment
-
-                Write-Host "Fetching pods..."
-                kubectl get pods -o wide
-
-                Write-Host "Fetching services..."
-                kubectl get services -o wide
-
-                Write-Host "Fetching deployments..."
-                kubectl get deployments
+                bat '''
+                // kubectl rollout status deployment/flask-app 
+                kubectl get pods 
+                kubectl get service
                 '''
             }
         }
+
+
     }
-
-    // ----------------------------
-    // CLEANUP AFTER EVERY BUILD
-    // ----------------------------
+    
     post {
         always {
-            echo "Stopping Minikube cluster..."
+            echo "stopping minikube cluster" 
+            bat 'minikube stop' 
+        }
+    }
 
-            powershell '''
-            Write-Host "Stopping Minikube..."
-            minikube stop
-            '''
-        }
-    }
 }
