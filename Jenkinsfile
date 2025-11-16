@@ -36,7 +36,7 @@ pipeline {
 
                 powershell '''
                 Write-Host "Switching Docker daemon to Minikube..."
-                minikube -p minikube docker-env --shell powershell | Out-String | Invoke-Expression
+                minikube -p minikube docker-env --shell powershell | Invoke-Expression
 
                 Write-Host "Docker Daemon switched. Building image..."
                 docker build -t flask-k8s-ci-cd-assignment:latest .
