@@ -1,74 +1,43 @@
 pipeline {
     agent any
 
+    environment {
+        DOCKER_IMAGE = "flask-k8s-ci-cd-app:latest"
+        KUBE_NAMESPACE = "default"
+    }
+
     stages {
-
-        // Stage 1: Start Minikube using Docker Desktop driver
-        stage("Start Minikube") {
+        stage('Build Docker Image') {
             steps {
-                echo "Starting Minikube with Docker Desktop driver..."
-                powershell '''
-                # Start Minikube with Docker Desktop driver
-                minikube start --driver=docker
-
-                # Verify Minikube status
-                minikube status
-                '''
+                echo "Building Docker Image..."
+                sh 'docker build -t $DOCKER_IMAGE .'
             }
         }
 
-        // Stage 2: Build Docker image inside Minikube's Docker daemon
-        stage("Build Docker Image") {
+        stage('Deploy to Kubernetes') {
             steps {
-                echo "Building Docker image inside Minikube's Docker environment..."
-                powershell '''
-                # Configure shell to use Minikube's Docker daemon
-                minikube -p minikube docker-env --shell powershell | Out-String | Invoke-Expression
-
-                # Build Docker image with tag
-                docker build -t flask-k8s-ci-cd-assignment:latest .
-
-                # List Docker images to verify
-                docker images
-                '''
+                echo "Applying Kubernetes manifests..."
+                sh 'kubectl apply -f kubernetes/'
             }
         }
 
-        // Stage 3: Deploy Kubernetes manifests
-        stage("Deploy to Kubernetes") {
+        stage('Verify Deployment') {
             steps {
-                echo "Deploying application to Minikube Kubernetes cluster..."
-                powershell '''
-                # Apply Deployment and Service manifests
-                kubectl apply -f  deployment.yaml
-                kubectl apply -f  service.yaml
-                '''
+                echo "Checking rollout status..."
+                sh 'kubectl rollout status deployment/flask-app'
+                echo "Listing Pods and Services..."
+                sh 'kubectl get pods'
+                sh 'kubectl get services'
             }
         }
-
-        // Stage 4: Verify Kubernetes deployment
-        stage("Verify Deployment") {
-            steps {
-                echo "Verifying deployment status and Kubernetes resources..."
-                powershell '''
-                # Check rollout status
-                kubectl rollout status deployment/flask-app
-
-                # List pods and services
-                kubectl get pods
-                kubectl get services
-                '''
-            }
-        }
-
     }
 
     post {
-        always {
-            echo "Stopping Minikube cluster to clean up resources..."
-            powershell '''
-            minikube stop
-            '''
+        success {
+            echo "Deployment to Kubernetes succeeded!"
+        }
+        failure {
+            echo "Deployment failed. Check logs."
         }
     }
 }
