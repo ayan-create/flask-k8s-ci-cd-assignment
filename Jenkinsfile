@@ -2,28 +2,29 @@ pipeline {
     agent any
 
     stages {
+
         stage("start minikube") {
             steps {
-                echo "starting minikube" 
+                echo "starting minikube"
                 bat 'minikube start --driver=docker'
             }
         }
 
-        stage('build docker image to minikube') {
+        stage("build docker image to minikube") {
             steps {
-                echo "building docker image insider minikube docker daemon" 
+                echo "building docker image inside minikube docker daemon"
                 bat '''
-                minikube -p minikube docker-env --shell cmd > minikube-env.bat 
-                call minikube-env.bat 
+                minikube -p minikube docker-env --shell cmd > minikube-env.bat
+                call minikube-env.bat
                 docker build -t flask-k8s-ci-cd-assignment:latest .
-                docker images 
+                docker images
                 '''
             }
         }
 
-        stage('deploy to kubernetes') {
+        stage("deploy to kubernetes") {
             steps {
-                echo "deploying to minikube k8s cluster" 
+                echo "deploying to minikube k8s cluster"
                 bat '''
                 kubectl apply -f deployment.yaml
                 kubectl apply -f service.yaml
@@ -31,24 +32,21 @@ pipeline {
             }
         }
 
-        stage('verify deployment') {
+        stage("verify deployment") {
             steps {
                 bat '''
-               
-                kubectl get pods 
-                kubectl get service
+                
+                kubectl get pods
+                kubectl get services
                 '''
             }
         }
-
-
     }
-    
+
     post {
         always {
-            echo "stopping minikube cluster" 
-            bat 'minikube stop' 
-        }
-    }
-
+            echo "stopping minikube cluster"
+            bat 'minikube stop'
+        }
+    }
 }
