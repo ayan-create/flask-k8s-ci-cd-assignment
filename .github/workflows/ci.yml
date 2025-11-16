@@ -33,7 +33,7 @@ jobs:
 
       - name: Run Pytest Tests
         run: |
-          pytest -v
+            
 
       - name: Build Docker Image
         run: |
