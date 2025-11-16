@@ -12,7 +12,7 @@ pipeline {
                 echo "Building Docker image inside Minikube's Docker environment..."
                 powershell '''
                 # Configure shell to use Minikube's Docker daemon
-                minikube -p minikube docker-env --shell powershell | Out-String | Invoke-Expression
+                minikube -p minikube docker-env --shell powershell | Invoke-Expression
 
                 # Build Docker image with tag
                 docker build -t flask-k8s-ci-cd-assignment:latest .
