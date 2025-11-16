@@ -40,8 +40,8 @@ pipeline {
                 echo "Deploying application to Minikube Kubernetes cluster..."
                 powershell '''
                 # Apply Deployment and Service manifests
-                kubectl apply -f ".\deployment.yaml"
-                kubectl apply -f ".\service.yaml"
+                kubectl apply -f  deployment.yaml
+                kubectl apply -f  service.yaml
                 '''
             }
         }
