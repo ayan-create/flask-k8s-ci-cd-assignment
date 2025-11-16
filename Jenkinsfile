@@ -9,8 +9,17 @@ pipeline {
     stages {
         stage('Build Docker Image') {
             steps {
-                echo "Building Docker Image..."
-                sh 'docker build -t $DOCKER_IMAGE .'
+                echo "Building Docker image inside Minikube's Docker environment..."
+                powershell '''
+                # Configure shell to use Minikube's Docker daemon
+                minikube -p minikube docker-env --shell powershell | Out-String | Invoke-Expression
+
+                # Build Docker image with tag
+                docker build -t flask-k8s-ci-cd-assignment:latest .
+
+                # List Docker images to verify
+                docker images
+                '''
             }
         }
 
